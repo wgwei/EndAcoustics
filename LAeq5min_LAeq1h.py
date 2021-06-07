@@ -35,6 +35,7 @@ def LAeq5min_to_LAeq1h_sigicom():
         current_date = current_date + pd.Timedelta(days=1)
     
     output_df = pd.DataFrame({'Date time': hours, 'dB_LAeq1h': LAeq_1h})
+    output_df.to_csv('Data\\LAeq_1h.csv')
     print(output_df.head())
     print(output_df.tail())
 
