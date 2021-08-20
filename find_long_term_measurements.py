@@ -1,4 +1,7 @@
+import csv
 import os
+from numpy.core.fromnumeric import mean
+from numpy.lib.function_base import average
 import pandas as pd
 import numpy as np
 
@@ -100,7 +103,7 @@ def extract_LAeq_LAFmax_dt2(filename):
             if len(splited_line)>0:  # to find the last valid row of data. after that there is an empty row
                 line_time, night = is_nighttime_data(splited_line)
                 if night==1:
-                    print(line_time, splited_line[index_max], splited_line[index_eq])
+                    # print(line_time, splited_line[index_max], splited_line[index_eq])
                     date_time.append(line_time)
                     LAFmax_dt.append(splited_line[index_max])
                     LAeq_dt.append(splited_line[index_eq])
@@ -134,12 +137,44 @@ def is_nighttime_data(line):
         night = 0
     return line_datetime, night
 
-def get_night_time(df):
-    """ df = ["Date", "Time", "LAFmax_dt", "LAeq_dt", "Datetime_obj"]
+
+def main2():
+    """ Extract the night time data in second resolution"""
+    os.chdir(r"C:\Users\WG\Documents\Research\EndAcoustics")
+    # filename = "Data\\Orange_recovery2_KT_2020-10-08_SLM_000_123_Log.txt"
+    # df2 = extract_LAeq_LAFmax_dt2(filename)
+    # df2.to_csv("Nighttime_data.csv")
+    # print(df2.head())
+    # print(df2.tail())
+    directory_jobs = ["D48_7000-7999.csv", "D48_6000-6999.csv", "D48_5000-5999.csv", "D48_4000-4999.csv"]
+    for dir_f in directory_jobs:
+        paths = pd.read_csv("Data\\" + dir_f)    
+        for n, p in enumerate(paths["Directories"]):
+            csv_output_filename = str(n) + "__" + p.split("\\")[4] + ".csv" # position 4 is the job name, will generate 0__9653 Station road, noise assessment style name
+            try:
+                all_files = os.listdir(p)
+                for f123 in all_files:
+                    if "_123_Log.txt" in f123:
+                        data_file = p + "\\" + f123
+                        print(data_file)
+                        print(csv_output_filename)
+                        try:
+                            df2 = extract_LAeq_LAFmax_dt2(data_file)
+                            df2.to_csv(csv_output_filename)
+                        except:
+                            print("FAILED TO LOAD FILE")
+            except:
+                print("FILE NOT FOUND")
+
+
+def get_night_time(start_date_time):
+    """ start_date_time = "2021-08-01 12:32:54" a string
         the last column of df should be Datetime object
     """
-    start_date = df.iloc[0, 4].date()
+    start_date_time = pd.to_datetime(start_date_time)
+    start_date = start_date_time.date()
     start_date = pd.to_datetime(start_date)  # convert the date only object to datetime object
+    print(start_date)
     mid_date = start_date + pd.to_timedelta("1 days")
     end_date = start_date + pd.to_timedelta("2 days")
 
@@ -147,37 +182,126 @@ def get_night_time(df):
     night_end_1 = mid_date + pd.to_timedelta("7 hours")
     night_start_2 = mid_date + pd.to_timedelta("23 hours")
     night_end_2 = end_date + pd.to_timedelta("7 hours")
-
+    print([night_start_1, night_end_1, night_start_2, night_end_2])
     return [night_start_1, night_end_1, night_start_2, night_end_2]
 
 
-def calc_LAeq8hr_LAFmax(df):
-    """ df = data frame of ["Date", "Time", "LAFmax_dt", "LAeq_dt"]
-        to calcualted the LAeq8hr and LAFmax every 1min,  5min, and 15min
+def calc_LAFmax_interval_in_sec(df, step, which_day=0):
+    """ df = dataFrame including["index", "Date_time", "LAFmax_dt", "LAeq_dt"]
+        step = in seconds, collect data every step seconds, for example every 60 seconds
+        which_day = 0 or 1. 0 for the first day data, 1 for the second day data
     """
-    df = df.dropna()  # after the basic data there are some descritpions, remove them from the data sapce
-    df = df.iloc[0:-1, :] # remove the last row as NAT
-    datetime_string = [str(d) + " " + str(t) for d, t in zip(df["Date"], df["Time"])]
-    datetime_obj = [pd.to_datetime(dt) for dt in datetime_string]
-    df["Datetime"] = pd.DataFrame({"Datetime_obj":datetime_obj})
-
-    [night_start_1, night_end_1, night_start_2, night_end_2] = get_night_time(df)
-
-    df_night = df[(df["Datetime"]>=night_start_1) & (df["Datetime"]<night_end_1)]
-    
-    return df_night
+    sec_in_8hr = 60*60*8  # how many secons in 8 hours
+    LAFmax_1interval = []
+    for m in range(int(sec_in_8hr/step)):
+        ss = m * step + sec_in_8hr*which_day
+        es = (m + 1) * step + sec_in_8hr*which_day
+        data_1unit = df["LAFmax_dt"][ss:es].values
+        LAFmax_1interval.append(max(data_1unit))
+    return LAFmax_1interval
 
 
-def main2():
-    """ Extract the night time data in second resolution"""
-    os.chdir(r"C:\Users\WG\Documents\Research\EndAcoustics")
-    directories = []
-    filename = "Data\\Orange_recovery2_KT_2020-10-08_SLM_000_123_Log.txt"
-    df2 = extract_LAeq_LAFmax_dt2(filename)
-    df2.to_csv("Nighttime_data.csv")
-    print(df2.head())
-    print(df2.tail())
+def get_nth_LAFmax(LAFmax):
+    """ get 1st 5th 10th 20th LAFmax
+        LAFmax = [list of LAFmax in different intervals]
+    """
+    LAFmax.sort(reverse=True)  # big number first. 
+    LAFmax_1 = LAFmax[0]
+    LAFmax_5 = LAFmax[4]
+    LAFmax_10 = LAFmax[9]
+    LAFmax_20 = LAFmax[19]
+    return [LAFmax_1, LAFmax_5, LAFmax_10, LAFmax_20]
+
+
+def calc_LAeq8hr_LAFmax(filename):
+    """ filename = file contains only nighttime data ["index", "Date_time", "LAFmax_dt", "LAeq_dt"] the resolution is most likely to be 1 second
+        Caclulate the LAeq8hr and LAFmax every 1min,  5min, and 15min
+        NOTE: as it takes too long to handle date time object. here use default 1 sec to count the time. 
+        it is assume the sampling rate of the measurement is 1 sec. ths is also the default setting of NTi meter
+    """
+    try:
+        df = pd.read_csv(filename)
+        if df.shape[0] > 1000:  # valid if more than 1000 lines recorded
+            is_df_valid = True
+    except:
+        print('FILE NOT FOUND')
+        is_df_valid = False
+
+    if is_df_valid:
+        # date_obj = [pd.to_datetime(x) for x in df["Date_time"]]
+        # df["Date_obj"] = pd.Series(date_obj)
+
+        # Calcualte LAeq,8hr
+        sec_in_8hr = 60*60*8  # how many secons in 8 hours
+        LAeq_1s_8hr_day1 = np.array(df["LAeq_dt"][0:sec_in_8hr].values)
+        LAeq_8hr_day1 = 10.*np.log10(mean(10**(LAeq_1s_8hr_day1/10)))
+        LAeq_1s_8hr_day2 = np.array(df["LAeq_dt"][sec_in_8hr:sec_in_8hr*2].values)
+        LAeq_8hr_day2 = 10.*np.log10(mean(10**(LAeq_1s_8hr_day2/10)))
+
+        step_1 = 60  # how many seconds in one minute
+        step_5 = 60*5  # seconds in 5 minute
+        step_15 = 60*15  # secnods in 15 minutes
+
+        # day 1
+        LAFmax_1min_day1 = calc_LAFmax_interval_in_sec(df, step_1, 0)  # 1 minute LAFmax
+        LAFmax_5min_day1 = calc_LAFmax_interval_in_sec(df, step_5, 0)  # 5 minutes interval LAFmax
+        LAFmax_15min_day1 = calc_LAFmax_interval_in_sec(df, step_15, 0)  # 15 minutes interval LAFmax
+        [LAFmax_1_1min_day1, LAFmax_5_1min_day1, LAFmax_10_1min_day1, LAFmax_20_1min_day1] = get_nth_LAFmax(LAFmax_1min_day1)
+        [LAFmax_1_5min_day1, LAFmax_5_5min_day1, LAFmax_10_5min_day1, LAFmax_20_5min_day1] = get_nth_LAFmax(LAFmax_5min_day1)
+        [LAFmax_1_15min_day1, LAFmax_5_15min_day1, LAFmax_10_15min_day1, LAFmax_20_15min_day1] = get_nth_LAFmax(LAFmax_15min_day1)
+        
+        # day 2
+        LAFmax_1min_day2 = calc_LAFmax_interval_in_sec(df, step_1, 1)  # 1 minute LAFmax
+        LAFmax_5min_day2 = calc_LAFmax_interval_in_sec(df, step_5, 1)  # 5 minutes interval LAFmax
+        LAFmax_15min_day2 = calc_LAFmax_interval_in_sec(df, step_15, 1)  # 15 minutes interval LAFmax
+        [LAFmax_1_1min_day2, LAFmax_5_1min_day2, LAFmax_10_1min_day2, LAFmax_20_1min_day2] = get_nth_LAFmax(LAFmax_1min_day2)
+        [LAFmax_1_5min_day2, LAFmax_5_5min_day2, LAFmax_10_5min_day2, LAFmax_20_5min_day2] = get_nth_LAFmax(LAFmax_5min_day2)
+        [LAFmax_1_15min_day2, LAFmax_5_15min_day2, LAFmax_10_15min_day2, LAFmax_20_15min_day2] = get_nth_LAFmax(LAFmax_15min_day2)
+        
+        return [LAeq_8hr_day1, 
+        LAFmax_1_1min_day1, LAFmax_5_1min_day1, LAFmax_10_1min_day1, LAFmax_20_1min_day1,
+        LAFmax_1_5min_day1, LAFmax_5_5min_day1, LAFmax_10_5min_day1, LAFmax_20_5min_day1, 
+        LAFmax_1_15min_day1, LAFmax_5_15min_day1, LAFmax_10_15min_day1, LAFmax_20_15min_day1, 
+        LAeq_8hr_day2,
+        LAFmax_1_1min_day2, LAFmax_5_1min_day2, LAFmax_10_1min_day2, LAFmax_20_1min_day2, 
+        LAFmax_1_5min_day2, LAFmax_5_5min_day2, LAFmax_10_5min_day2, LAFmax_20_5min_day2, 
+        LAFmax_1_15min_day2, LAFmax_5_15min_day2, LAFmax_10_15min_day2, LAFmax_20_15min_day2]
+    else:
+        return [0]*26
+
+
+def put_file_together():
+    ''' Put all files together'''
+    directory_jobs = ["D48_9000-9999.csv", "D48_8000-8999.csv", "D48_7000-7999.csv", "D48_6000-6999.csv", "D48_5000-5999.csv", "D48_4000-4999.csv"]
+    ref_path, csv_out_filenames = [], []
+    for dir_f in directory_jobs:
+        paths = pd.read_csv("Data\\" + dir_f)
+        for n, p in enumerate(paths["Directories"]):
+            ref_path.append(p)
+            csv_output = str(n) + "__" + p.split("\\")[4] + ".csv" # position 4 is the job name, will generate 0__9653 Station road, noise assessment style name
+            csv_out_filenames.append(csv_output)
+    return ref_path, csv_out_filenames
+
+
+def main3():
+    """ calculate Laeq8hr, LAFmax,1min interval 5min interval. """
+    ref_path, csv_out_filenames = put_file_together()
+    data_cols = ['Directory', 'LAeq_8hr_day1', 
+    'LAFmax_1_1min_day1', 'LAFmax_5_1min_day1', 'LAFmax_10_1min_day1', 'LAFmax_20_1min_day1',
+    'LAFmax_1_5min_day1', 'LAFmax_5_5min_day1', 'LAFmax_10_5min_day1', 'LAFmax_20_5min_day1', 
+    'LAFmax_1_15min_day1', 'LAFmax_5_15min_day1', 'LAFmax_10_15min_day1', 'LAFmax_20_15min_day1', 
+    'LAeq_8hr_day2',
+    'LAFmax_1_1min_day2', 'LAFmax_5_1min_day2', 'LAFmax_10_1min_day2', 'LAFmax_20_1min_day2', 
+    'LAFmax_1_5min_day2', 'LAFmax_5_5min_day2', 'LAFmax_10_5min_day2', 'LAFmax_20_5min_day2', 
+    'LAFmax_1_15min_day2', 'LAFmax_5_15min_day2', 'LAFmax_10_15min_day2', 'LAFmax_20_15min_day2']
+    df = pd.DataFrame(columns=data_cols)
+    for file_path, data_1s_file in zip(ref_path, csv_out_filenames):
+        print(data_1s_file)
+        result_list = calc_LAeq8hr_LAFmax(data_1s_file)
+        row = [[file_path] + result_list]   # [[path, LAeq8hr, LAFmax....]]
+        df = df.append(pd.DataFrame(row, columns=data_cols))
+    df.to_csv('Summary_table.csv')
 
 
 if __name__=="__main__":
-    main2()
+    main3()
