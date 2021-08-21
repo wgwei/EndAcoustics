@@ -1,9 +1,9 @@
 import csv
 import os
 from numpy.core.fromnumeric import mean
-from numpy.lib.function_base import average
 import pandas as pd
 import numpy as np
+import matplotlib.pylab as plt
 
 def find_xl2_measurements_48hrs(current_path=os.getcwd()):
     """ walk the job folders and find the measurements undertaken by XL2
@@ -146,7 +146,7 @@ def main2():
     # df2.to_csv("Nighttime_data.csv")
     # print(df2.head())
     # print(df2.tail())
-    directory_jobs = ["D48_7000-7999.csv", "D48_6000-6999.csv", "D48_5000-5999.csv", "D48_4000-4999.csv"]
+    directory_jobs = ['D48_9000-9999.csv', 'D48_8000-8999.csv', "D48_7000-7999.csv", "D48_6000-6999.csv", "D48_5000-5999.csv", "D48_4000-4999.csv"]
     for dir_f in directory_jobs:
         paths = pd.read_csv("Data\\" + dir_f)    
         for n, p in enumerate(paths["Directories"]):
@@ -219,10 +219,16 @@ def calc_LAeq8hr_LAFmax(filename):
         NOTE: as it takes too long to handle date time object. here use default 1 sec to count the time. 
         it is assume the sampling rate of the measurement is 1 sec. ths is also the default setting of NTi meter
     """
+    
     try:
-        df = pd.read_csv(filename)
-        if df.shape[0] > 1000:  # valid if more than 1000 lines recorded
-            is_df_valid = True
+        if '4233' in filename:  # the samepling is not one data per sec for this job
+            is_df_valid = False
+        else:
+            df = pd.read_csv(filename)
+            if df.shape[0] > 1000:  # valid if more than 1000 lines recorded
+                is_df_valid = True
+            else:
+                is_df_valid = False    
     except:
         print('FILE NOT FOUND')
         is_df_valid = False
@@ -303,5 +309,65 @@ def main3():
     df.to_csv('Summary_table.csv')
 
 
+def plot_output():
+    summary = pd.read_csv('Summary_table.csv')
+    summary = summary[summary['LAeq_8hr_day1']>0]  # remove the rows only have zeros
+
+    # plot LAeq_8hr_day1 minus LAeq_8hr_day2
+    Ld8hr = summary['LAeq_8hr_day1'] - summary['LAeq_8hr_day2']
+    plt.boxplot(Ld8hr)
+    plt.grid()
+
+    # plot LAFmax_1, 5, 10, 20 difference based on different time intervals 1 minute and 5 minute
+    LAF_5 = list(summary['LAFmax_5_1min_day1'].values - summary['LAFmax_5_5min_day1'].values)
+    LAF_5 = LAF_5 + list(summary['LAFmax_5_1min_day2'].values - summary['LAFmax_5_5min_day2'].values)  # merge day 1 and day 2 data
+    LAF_10 = list(summary['LAFmax_10_1min_day1'].values - summary['LAFmax_10_5min_day1'].values)
+    LAF_10 = LAF_10 + list(summary['LAFmax_10_1min_day2'].values - summary['LAFmax_10_5min_day2'].values)
+    LAF_20 = list(summary['LAFmax_20_1min_day1'].values - summary['LAFmax_20_5min_day1'].values)
+    LAF_20 = LAF_20 + list(summary['LAFmax_20_1min_day2'].values - summary['LAFmax_20_5min_day2'].values)
+    LAFmax_resoluton = [LAF_5, LAF_10, LAF_20]
+    plt.figure()
+    plt.boxplot(LAFmax_resoluton)
+    plt.grid()
+    plt.ylabel('LAFmax 1min - LAFmax 5min, dB')
+    plt.xticks([1, 2, 3], ["5th LAFmax", "10th LAFmax", "20th LAFmax"])
+    plt.title("Difference between 1 minute and 5-minute resolution")
+
+    # 1 minute resolution LAFmax_1, LAFmax_5, LAFmax_10, LAFmax_20 minus LAeq_8hr
+    LAFmax1_LAeq8h = list(summary['LAFmax_1_1min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax1_LAeq8h = LAFmax1_LAeq8h + list(summary['LAFmax_1_1min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax5_LAeq8h = list(summary['LAFmax_5_1min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax5_LAeq8h = LAFmax5_LAeq8h + list(summary['LAFmax_5_1min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax10_LAeq8h = list(summary['LAFmax_10_1min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax10_LAeq8h = LAFmax10_LAeq8h + list(summary['LAFmax_10_1min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax20_LAeq8h = list(summary['LAFmax_20_1min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax20_LAeq8h = LAFmax20_LAeq8h + list(summary['LAFmax_20_1min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax_1min_LAeq8h = [LAFmax1_LAeq8h, LAFmax5_LAeq8h, LAFmax10_LAeq8h, LAFmax20_LAeq8h]
+    plt.figure()
+    plt.boxplot(LAFmax_1min_LAeq8h)
+    plt.grid()
+    plt.ylabel('LAFmax 1min - LAeq_8hr, dB')
+    plt.xticks([1, 2, 3, 4], ["1st LAFmax - LAeq8hr", "5th LAFmax - LAeq8hr", "10th LAFmax - LAeq8hr", "20th LAFmax - LAeq8hr"])
+    plt.title("Difference between LAFmax 1min and LAeq_8hr")
+
+    # 5 minute resolution LAFmax_1, LAFmax_5, LAFmax_10, LAFmax_20 minus LAeq_8hr
+    LAFmax1_LAeq8h = list(summary['LAFmax_1_5min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax1_LAeq8h = LAFmax1_LAeq8h + list(summary['LAFmax_1_5min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax5_LAeq8h = list(summary['LAFmax_5_5min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax5_LAeq8h = LAFmax5_LAeq8h + list(summary['LAFmax_5_5min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax10_LAeq8h = list(summary['LAFmax_10_5min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax10_LAeq8h = LAFmax10_LAeq8h + list(summary['LAFmax_10_5min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax20_LAeq8h = list(summary['LAFmax_20_5min_day1'] - summary['LAeq_8hr_day1'])
+    LAFmax20_LAeq8h = LAFmax20_LAeq8h + list(summary['LAFmax_20_5min_day2'] - summary['LAeq_8hr_day2'])
+    LAFmax_5min_LAeq8h = [LAFmax1_LAeq8h, LAFmax5_LAeq8h, LAFmax10_LAeq8h, LAFmax20_LAeq8h]
+    plt.figure()
+    plt.boxplot(LAFmax_5min_LAeq8h)
+    plt.grid()
+    plt.ylabel('LAFmax 5min - LAeq_8hr, dB')
+    plt.xticks([1, 2, 3, 4], ["1st LAFmax - LAeq8hr", "5th LAFmax - LAeq8hr", "10th LAFmax - LAeq8hr", "20th LAFmax - LAeq8hr"])
+    plt.title("Difference between LAFmax 5min and LAeq_8hr")
+
+
 if __name__=="__main__":
-    main3()
+    plot_output()
+    plt.show()
