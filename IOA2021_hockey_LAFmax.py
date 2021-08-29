@@ -1,9 +1,11 @@
 import numpy as np
+from numpy.core.fromnumeric import mean, std
 from faq_tools import octave_bands, fft_wave_data, A_weighting
 from scipy.io import wavfile
 import pandas as pd
 import os
 import matplotlib.pylab as plt
+
 
 def adjust_value_by_LAeqT():
     ''' Calcualte the adjusted value from FFT to LAFmax
@@ -14,8 +16,6 @@ def adjust_value_by_LAeqT():
     adjusts = []  # the offset value from FFT to LAeq,T
     for v, fn in enumerate(filenames):
         samplerate, data_slice = wavfile.read(os.path.join('validate adjust level', fn))
-        plt.plot(data_slice)
-        plt.show()
         # no window is applied as the signal lenght is too short. After testing
         # after testing, the uncertainty without window is the least fluctuated ones
         xf, levels = fft_wave_data(samplerate, data_slice, NFFT=16384*2)
@@ -43,8 +43,8 @@ def FFT_to_LAeq(xf, FFT_levels):
     return total_a
 
 
-def calc_LAFmax_dt(filename):
-    ''' perform FFT and calculate the LAFmax_dt of the wave file'''
+def calc_LAeq_dt(filename):
+    ''' perform FFT and calculate the LAFmax_dt based on the LAeq_dt of the wave file'''
     # calcuated noise level minus this value to get the measured value of LAFmax
     adjust = 43.07   # the is the difference between FFT output and measured noise levels.
     samplerate, data_slice = wavfile.read(filename)
@@ -54,11 +54,25 @@ def calc_LAFmax_dt(filename):
     return LAeq_adjusted
 
 
+def hist_plot(data_list):
+    df = pd.DataFrame({"LAFmax":data_list})
+    bin_num = int(df.max() - df.min())
+    axi = df.plot.hist(bins=bin_num, density=1, alpha=0.5)
+    df.plot.kde(ax=axi)
+    plt.grid()
+
+
 
 def main():
     os.chdir(r'G:\Shared drives\Apex\Acoustic Data\IOA, conference proceedings\2021 papers\Hockey match maximum noise levels')
-    adjust_value_by_LAeqT()
-    # LAeq_adjusted = calc_Laeq_dt('110821-110824 max.wav')
+    # adjust_value_by_LAeqT()
+    LAFmax = []
+    filenames = [str(1+n)+'.wav' for n in range(104)]
+    LAFmax = [calc_LAeq_dt(os.path.join('bat hitting', fn)) for fn in filenames]
+    hist_plot(LAFmax)
+    print(mean(LAFmax))
+    print(std(LAFmax))
+    plt.show()
     # print(LAeq_adjusted)
 
 
