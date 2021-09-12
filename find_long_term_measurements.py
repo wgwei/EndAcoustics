@@ -317,6 +317,7 @@ def plot_output():
     Ld8hr = summary['LAeq_8hr_day1'] - summary['LAeq_8hr_day2']
     plt.boxplot(Ld8hr)
     plt.grid()
+    plt.ylabel("LAeq8hr_day1 - LAeq8hr_day2, dB")
 
     # plot LAFmax_1, 5, 10, 20 difference based on different time intervals 1 minute and 5 minute
     LAF_5 = list(summary['LAFmax_5_1min_day1'].values - summary['LAFmax_5_5min_day1'].values)

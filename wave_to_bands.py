@@ -77,8 +77,12 @@ def third_octave_bands():
 
 
 def fft_wave_data(samplerate, data, NFFT=16384*2):
-    w = hann(data.shape[0])
+    ''' the input are as follows: 
+        samplerate, data = wavfile.read(filename)
+    '''
+    w = hann(data.shape[0]) # Adding hann window may have some effect if the signal is short and impulsive
     yf = fft(data*w,  NFFT)
+    # yf = fft(data,  NFFT)
     xf = fftfreq(NFFT, 1/NFFT)[0:NFFT//2] * samplerate/NFFT
     yf_amplitude = 2./NFFT*np.abs(yf[0:NFFT//2])
 

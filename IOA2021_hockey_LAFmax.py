@@ -56,15 +56,15 @@ def calc_LAeq_dt(filename):
 
 def hist_plot(data_list):
     df = pd.DataFrame({"LAFmax":data_list})
+    df.to_csv('LAFmax_dt_from_FFT.csv')
     bin_num = int(df.max() - df.min())
     axi = df.plot.hist(bins=bin_num, density=1, alpha=0.5)
     df.plot.kde(ax=axi)
     plt.grid()
 
 
-
 def main():
-    os.chdir(r'G:\Shared drives\Apex\Acoustic Data\IOA, conference proceedings\2021 papers\Hockey match maximum noise levels')
+    os.chdir(r'G:\Shared drives\Apex\Acoustic Data\IOA, conference proceedings\2021 papers\Max noise levels from hockey pitches')
     # adjust_value_by_LAeqT()
     LAFmax = []
     filenames = [str(1+n)+'.wav' for n in range(104)]
@@ -72,6 +72,7 @@ def main():
     hist_plot(LAFmax)
     print(mean(LAFmax))
     print(std(LAFmax))
+    plt.xlabel('LAFmax at 11 m')
     plt.show()
     # print(LAeq_adjusted)
 
