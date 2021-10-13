@@ -11,11 +11,11 @@ def to_ymd_hms(time_string):
     ''' convert the time string 30/07/2021  18:00:00 to 2021-07-30 18:00:00 style'''
     s = time_string.split(' ')
     hms = s[-1]
-    dmy = s[0].split('/')
-    # dmy = s[0].split('-')
-    d = dmy[0]
+    # dmy = s[0].split('/')
+    dmy = s[0].split('-')
+    d = dmy[2]
     m = dmy[1]
-    y = dmy[2]
+    y = dmy[0]
     ymd_hms = str(y) + '-' + str(m) + '-' + str(d) + ' ' + hms
     return ymd_hms  # a string '2021-07-30 18:00:00'
 
@@ -113,6 +113,12 @@ class Vibration():
         self.vib['Time_obj'] = pd.Series(datetime_obj)
         print(self.vib.head())
         print(self.vib.tail())
+
+        # find the start and end date
+        start_date = self.vib['Time_obj'].iloc[0].date()
+        self.start_date = pd.to_datetime(start_date)
+        end_date = self.vib['Time_obj'].iloc[-1].date()
+        end_date = pd.to_datetime(end_date)
     
     def count_events(self):
         ''' count the nubmer of events when LAeq exceeds 70, 75 and 80 dBA
@@ -141,18 +147,49 @@ class Vibration():
         output = pd.DataFrame(all_data, index=day_all, columns=['>3 mm/s', '>5 mm/s', '>10 mm/s'])
         output = output.transpose()
         output.to_csv('Vibratoin events count.csv')
+    
+
+    def plot_time_history(self):
+        wk1_start_date = self.start_date
+        wk1_end_date = wk1_start_date + pd.Timedelta(5, "days")
+        wk2_start_date = wk1_start_date + pd.Timedelta(7, "days")
+        wk2_end_date = wk2_start_date + pd.Timedelta(5, "days")
+        wk3_start_date = wk2_start_date + pd.Timedelta(7, "days")
+        wk3_end_date = wk3_start_date + pd.Timedelta(5, "days")
+        wk4_start_date = wk3_start_date + pd.Timedelta(7, "days")
+        wk4_end_date = wk4_start_date + pd.Timedelta(5, "days")
+        weeks = [[wk1_start_date, wk1_end_date], [wk2_start_date, wk2_end_date], 
+        [wk3_start_date, wk3_end_date], [wk4_start_date, wk4_end_date]]
+
+        for wk in weeks:
+            start_time = wk[0]
+            end_time = wk[1]
+            df2 = self.vib[(self.vib['Time_obj']>=start_time) & (self.vib['Time_obj']<end_time)]
+            data_len = df2.shape[0]
+            x_tick_id = [0, int(data_len*0.2), int(data_len*0.4), int(data_len*0.6), int(data_len*0.8)]
+            x_tick_values = [df2['Time_obj'].iloc[i].date() for i in x_tick_id]
+            plt.figure()
+            plt.plot(range(data_len), df2['V'])
+            plt.plot(range(data_len), df2['L'])
+            plt.plot(range(data_len), df2['T'])
+            plt.grid()
+            plt.ylabel('mm/s')
+            plt.legend(['V','L', 'T'])
+            plt.xticks(x_tick_id, x_tick_values)
+        plt.show()
 
 
 def main():
-    os.chdir(r"G:\Shared drives\8000 - 8999\8500 - 8599\8527 Hebburn Mine Water noise and vib monitoring\Reports\Monitoring report\20210816-20210910")
-    file_noise = "interval_8527_6291309_2021-08-16-0000-2021-09-10-2359_noise.csv"
-    file_vibration = "interval_8527_6291309_2021-08-16-0000-2021-09-10-2359_vibration2.csv"
-    noise_obj = Noise(file_noise)
+    os.chdir(r"H:\Shared drives\8000 - 8999\8500 - 8599\8527 Hebburn Mine Water noise and vib monitoring\Reports\Monitoring report\20210913-20211009")
+    file_noise = "interval_8527_6438361_2021-09-13-0000-2021-10-08-2359_noise.csv"
+    file_vibration = "interval_8527_6438361_2021-09-13-0000-2021-10-08-2359_vibration.csv"
+    # noise_obj = Noise(file_noise)
     # noise_obj.count_events()
     # noise_obj.calc_LAeq0800_1800()
-    noise_obj.plot_time_history()
-    # vib_obj = Vibration(file_vibration)
+    # noise_obj.plot_time_history()
+    vib_obj = Vibration(file_vibration)
     # vib_obj.count_events()
+    vib_obj.plot_time_history()
 
 
 if __name__=="__main__":
